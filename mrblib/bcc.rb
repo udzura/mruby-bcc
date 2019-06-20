@@ -1,5 +1,2 @@
-class BCC
-  def bye
-    self.hello + " bye"
-  end
+module BCC
 end
