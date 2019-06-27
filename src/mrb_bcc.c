@@ -14,6 +14,7 @@
 #include <mruby/data.h>
 #include <mruby/error.h>
 #include <mruby/string.h>
+#include <mruby/array.h>
 #include <error.h>
 #include <stdio.h>
 #include "mrb_bcc.h"
@@ -82,13 +83,19 @@ void mrb_bcc_attach_callback(const char *binpath, const char *fn_name, uint64_t 
 
     // self._get_uprobe_evname(b"p", binpath, addr, pid)
     // return b"%s_%s_0x%x_%d" % (prefix, self._probe_repl.sub(b"_", path), addr, pid)
-    char eve_name[1024];
     mrb_value binpath_rb = mrb_str_new_cstr(mrb_tmp, binpath);
     mrb_value binpath_rb_normalized =
       mrb_funcall(mrb_tmp, binpath_rb, "tr", 2, mrb_str_new_lit(mrb_tmp, "\\-/.~@+:;"), mrb_str_new_lit(mrb_tmp, "_"));
-    sprintf(eve_name, "%s_%s_0x%lx_%d", "p", mrb_string_value_cstr(mrb_tmp, &binpath_rb_normalized), addr, pid);
-    _debug_p("event: %s\n", eve_name);
-    if(bpf_attach_uprobe(fd, BPF_PROBE_ENTRY, eve_name, binpath, addr, pid) < 0){
+    mrb_value values[4] = {
+      mrb_str_new_lit(mrb_tmp, "p"),
+      binpath_rb_normalized,
+      mrb_float_value(mrb_tmp, (mrb_float)addr),
+      mrb_fixnum_value((mrb_int)pid),
+    };
+    mrb_value eve_name =
+      mrb_funcall(mrb_tmp, mrb_str_new_lit(mrb_tmp, "%s_%s_0x%x_%d"), "%", 1, mrb_ary_new_from_values(mrb_tmp, 4, values));
+    _debug_p("event: %s\n", mrb_string_value_cstr(mrb_tmp, &eve_name));
+    if(bpf_attach_uprobe(fd, BPF_PROBE_ENTRY, mrb_string_value_cstr(mrb_tmp, &eve_name), binpath, addr, pid) < 0){
       perror("bpf_attach_uprobe");
     }
   }
