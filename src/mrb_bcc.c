@@ -88,9 +88,9 @@ void mrb_bcc_attach_callback(const char *binpath, const char *fn_name, uint64_t 
   }
 }
 
-static mrb_value mrb_bcc_hello(mrb_state *mrb, mrb_value self)
+static mrb_value mrb_bcc_do_all(mrb_state *mrb, mrb_value self)
 {
-  mrb_bcc_data *data = DATA_PTR(self);
+  /* mrb_bcc_data *data = DATA_PTR(self); */
   mrb_int pid;
   char *probe_name, *fn_name, *code;
   mrb_get_args(mrb, "izzz", &pid, &probe_name, &fn_name, &code);
@@ -129,18 +129,13 @@ static mrb_value mrb_bcc_hello(mrb_state *mrb, mrb_value self)
   return real_code;
 }
 
-static mrb_value mrb_bcc_hi(mrb_state *mrb, mrb_value self)
-{
-  return mrb_str_new_cstr(mrb, "hi!!");
-}
-
 void mrb_mruby_bcc_gem_init(mrb_state *mrb)
 {
+  /* TODO: tidy up classes */
   struct RClass *bcc;
   bcc = mrb_define_module(mrb, "BCC");
-  mrb_define_method(mrb, bcc, "initialize", mrb_bcc_init, MRB_ARGS_REQ(1));
-  mrb_define_module_function(mrb, bcc, "hello", mrb_bcc_hello, MRB_ARGS_REQ(4));
-  mrb_define_class_method(mrb, bcc, "hi", mrb_bcc_hi, MRB_ARGS_NONE());
+  /* mrb_define_method(mrb, bcc, "initialize", mrb_bcc_init, MRB_ARGS_REQ(1)); */
+  mrb_define_module_function(mrb, bcc, "do_all", mrb_bcc_do_all, MRB_ARGS_REQ(4));
   DONE;
 }
 
