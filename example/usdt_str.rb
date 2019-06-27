@@ -3,11 +3,10 @@ pid = ARGV[0]
 bpf_text = <<CLANG
 #include <uapi/linux/ptrace.h>
 int do_trace(struct pt_regs *ctx) {
-    long buf, tgt;
+    char buf[256];
 
-    bpf_usdt_readarg(1, ctx, &buf);
-    bpf_probe_read(&tgt, sizeof(tgt), (void *)&buf);
-    bpf_trace_printk("%ld\\n", tgt);
+    bpf_usdt_readarg_p(1, ctx, &buf, 256);
+    bpf_trace_printk("%s\\n", buf);
     return 0;
 };
 CLANG
