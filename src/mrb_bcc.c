@@ -20,6 +20,12 @@
 
 #define DONE mrb_gc_arena_restore(mrb, 0);
 
+#ifdef MRB_DEBUG
+  #define _debug_p(...) printf(__VA_ARGS__)
+#else
+  #define _debug_p(...)
+#endif
+
 typedef struct {
   char *str;
   int len;
@@ -72,7 +78,7 @@ void mrb_bcc_attach_callback(const char *binpath, const char *fn_name, uint64_t 
   if(fd < 0) {
     perror("func_load");
   } else {
-    printf("load ok: %s\n", fn_name);
+    _debug_p("load ok: %s\n", fn_name);
 
     // self._get_uprobe_evname(b"p", binpath, addr, pid)
     // return b"%s_%s_0x%x_%d" % (prefix, self._probe_repl.sub(b"_", path), addr, pid)
@@ -81,7 +87,7 @@ void mrb_bcc_attach_callback(const char *binpath, const char *fn_name, uint64_t 
     mrb_value binpath_rb_normalized =
       mrb_funcall(mrb_tmp, binpath_rb, "tr", 2, mrb_str_new_lit(mrb_tmp, "\\-/.~@+:;"), mrb_str_new_lit(mrb_tmp, "_"));
     sprintf(eve_name, "%s_%s_0x%lx_%d", "p", mrb_string_value_cstr(mrb_tmp, &binpath_rb_normalized), addr, pid);
-    printf("event: %s\n", eve_name);
+    _debug_p("event: %s\n", eve_name);
     if(bpf_attach_uprobe(fd, BPF_PROBE_ENTRY, eve_name, binpath, addr, pid) < 0){
       perror("bpf_attach_uprobe");
     }
@@ -113,7 +119,7 @@ static mrb_value mrb_bcc_do_all(mrb_state *mrb, mrb_value self)
                                         0,
                                         1);
 
-  printf("funsize: %d\n", bpf_num_functions(BCC));
+  _debug_p("funsize: %d\n", bpf_num_functions(BCC));
   /* for(int i = 0; i < bpf_num_functions(BCC); i++) { */
   /*   const char *fn_name = bpf_function_name(BCC, i); */
   /*   if(fn_name) { */
