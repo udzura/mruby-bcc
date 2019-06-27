@@ -31,7 +31,8 @@ static const struct mrb_data_type mrb_bcc_data_type = {
 
 #define MRB_BCC_KPROBE 2
 
-void *BCC;
+void *BCC_tmp;
+mrb_state *mrb_tmp;
 
 static mrb_value mrb_bcc_init(mrb_state *mrb, mrb_value self)
 {
@@ -57,11 +58,16 @@ static mrb_value mrb_bcc_init(mrb_state *mrb, mrb_value self)
 
 void mrb_bcc_attach_callback(const char *binpath, const char *fn_name, uint64_t addr, int pid)
 {
-  int fd = bcc_func_load(BCC, MRB_BCC_KPROBE, fn_name,
-                         bpf_function_start(BCC, fn_name),
-                         bpf_function_size(BCC, fn_name),
-                         bpf_module_license(BCC),
-                         bpf_module_kern_version(BCC),
+  if(!BCC_tmp || !mrb_tmp) {
+    printf("wrong call of callback\n");
+    abort();
+  }
+
+  int fd = bcc_func_load(BCC_tmp, MRB_BCC_KPROBE, fn_name,
+                         bpf_function_start(BCC_tmp, fn_name),
+                         bpf_function_size(BCC_tmp, fn_name),
+                         bpf_module_license(BCC_tmp),
+                         bpf_module_kern_version(BCC_tmp),
                          0, NULL, 0);
   if(fd < 0) {
     perror("func_load");
@@ -71,7 +77,10 @@ void mrb_bcc_attach_callback(const char *binpath, const char *fn_name, uint64_t 
     // self._get_uprobe_evname(b"p", binpath, addr, pid)
     // return b"%s_%s_0x%x_%d" % (prefix, self._probe_repl.sub(b"_", path), addr, pid)
     char eve_name[1024];
-    sprintf(eve_name, "%s_%s_0x%x_%d", "p", "_usr_local_ghq_github_com_udzura_mruby_probe", addr, pid);
+    mrb_value binpath_rb = mrb_str_new_cstr(mrb_tmp, binpath);
+    mrb_value binpath_rb_normalized =
+      mrb_funcall(mrb_tmp, binpath_rb, "tr", 2, mrb_str_new_lit(mrb_tmp, "\\-/.~@+:;"), mrb_str_new_lit(mrb_tmp, "_"));
+    sprintf(eve_name, "%s_%s_0x%lx_%d", "p", mrb_string_value_cstr(mrb_tmp, &binpath_rb_normalized), addr, pid);
     printf("event: %s\n", eve_name);
     if(bpf_attach_uprobe(fd, BPF_PROBE_ENTRY, eve_name, binpath, addr, pid) < 0){
       perror("bpf_attach_uprobe");
@@ -97,7 +106,7 @@ static mrb_value mrb_bcc_hello(mrb_state *mrb, mrb_value self)
   mrb_value code2 = mrb_str_new_cstr(mrb, code);
   mrb_value real_code = mrb_str_plus(mrb, code1, code2);
 
-  BCC = bpf_module_create_c_from_string(
+  void *BCC = bpf_module_create_c_from_string(
                                         mrb_string_value_cstr(mrb, &real_code),
                                         0,
                                         NULL,
@@ -110,7 +119,12 @@ static mrb_value mrb_bcc_hello(mrb_state *mrb, mrb_value self)
   /*   if(fn_name) { */
   /*   } */
   /* } */
+
+  BCC_tmp = BCC;
+  mrb_tmp = mrb;
   bcc_usdt_foreach_uprobe(USDT, mrb_bcc_attach_callback);
+  BCC_tmp = NULL;
+  mrb_tmp = NULL;
 
   return real_code;
 }
